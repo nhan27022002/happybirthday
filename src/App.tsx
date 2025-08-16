@@ -710,7 +710,7 @@ const animateLinesDotsSequence = async (ctx: CanvasRenderingContext2D, lines: re
   if (entered && showLetter) {
     return (
       <div style={{ padding: "20px", textAlign: "center", backgroundColor: "#7a3a54ff", height: "100vh" }}>
-        <h1>💌 Gửi Quỳnh Như 💌</h1>
+        <h1>💌 Gửi Mi 💌</h1>
         <p style={{ fontSize: "18px", maxWidth: "680px", margin: "24px auto", lineHeight: "1.7", whiteSpace: "pre-line", textAlign: "center" }}>
           {letterText}
         </p>
