@@ -38,18 +38,28 @@ const INTRO_WORD_SHIFT = -0.05; // dịch chữ HBD sang trái ~5% chiều rộn
 const INTRO_MARGIN = 0.04; // lề an toàn 4% để không bị cắt cạnh
 
 // ====== EXTRA LINES AFTER HBD ======
-const AFTER_LINES = [
-  "Kiều Mi 🎉",
-  "27-10-20xx✨",
-  " 18+ 💖"
-] as const;
+const AFTER_LINES = ["Quỳnh Như 🎉", "13-10-2007✨", "18+ 💖"] as const;
 
-// ====== UTILS CHUNG ======
+// ====== UTILS ======
 const easeOutCubic = (p: number) => 1 - Math.pow(1 - p, 3);
-const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+const clamp = (v: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, v));
+
+const getViewportWH = () => {
+  const vw = window.innerWidth;
+  const vh = window.visualViewport?.height ?? window.innerHeight; // ổn định trên mobile
+  return { vw, vh };
+};
 
 function gradColor(ctx: CanvasRenderingContext2D, SW: number, SH: number) {
-  const g = ctx.createRadialGradient(SW / 2, SH * 0.2, 10, SW / 2, SH / 2, Math.max(SW, SH));
+  const g = ctx.createRadialGradient(
+    SW / 2,
+    SH * 0.2,
+    10,
+    SW / 2,
+    SH / 2,
+    Math.max(SW, SH)
+  );
   g.addColorStop(0, "#ffffff");
   g.addColorStop(0.35, "#ffd1e7");
   g.addColorStop(0.7, "#ff4fa3");
@@ -64,15 +74,15 @@ function App() {
   const [showLetterButton, setShowLetterButton] = useState(false);
   const [showLetter, setShowLetter] = useState(false);
 
-// Nội dung thư — dùng \n để xuống dòng theo ý bạn
-  const letterText = `Chúc Mi sinh nhật vui vẻ nhé
+  // Nội dung thư
+  const letterText = `Chúc Như sinh nhật vui vẻ nhé
    Tuổi mới thêm niềm vui mới
 Cầu gì được nấy 
 Cầu tiền được tiền
 Cầu tình được tình 
 Cầu tài được tài
 Chúc em sống mãi trong ánh sáng của 10 phương chư phật.
-Lớp bờ du :)) 🎂🎉😘😘
+Lớp diuuu :)) 🎂🎉😘😘
  🎂🎉🎂🎉`;
 
   const audioRef = useRef<HTMLAudioElement>(new Audio(src));
@@ -87,32 +97,61 @@ Lớp bờ du :)) 🎂🎉😘😘
   const visibility = shareMode || playing;
 
   // ---- States intro overlay ----
-  const [entered, setEntered] = useState(false);     // Đã vào phần bánh kem (ẩn intro)
-  const [showEnter, setShowEnter] = useState(false); // Hiện nút "Nhận bánh kem"
+  const [entered, setEntered] = useState(false);
+  const [showEnter, setShowEnter] = useState(false);
   const [introButtonTop, setIntroButtonTop] = useState<number | null>(null);
-  // vị trí chấm hướng dẫn (beacon) dưới bánh
+
   // ---- Refs canvas intro ----
   const starsRef = useRef<HTMLCanvasElement | null>(null);
   const fxRef = useRef<HTMLCanvasElement | null>(null);
   const matrixRef = useRef<HTMLCanvasElement | null>(null);
   const ctnRef = useRef<HTMLCanvasElement | null>(null);
 
-  const dprRef = useRef(Math.min(window.devicePixelRatio || 1, 1));
+  const dprRef = useRef(Math.min(window.devicePixelRatio || 1, 1)); // khóa 1 để đỡ lag
   const SWRef = useRef(window.innerWidth);
   const SHRef = useRef(window.innerHeight);
   const rafRef = useRef<number | null>(null);
   const gradRef = useRef<CanvasGradient | null>(null);
 
   // stars/hearts
-  const stars = useRef<Array<{ x: number; y: number; r: number; tw: number; sp: number }>>([]);
-  const hearts = useRef<Array<{ x: number; y: number; size: number; vy: number; vx: number; a: number; rot: number }>>([]);
+  const stars = useRef<
+    Array<{ x: number; y: number; r: number; tw: number; sp: number }>
+  >([]);
+  const hearts = useRef<
+    Array<{
+      x: number;
+      y: number;
+      size: number;
+      vy: number;
+      vx: number;
+      a: number;
+      rot: number;
+    }>
+  >([]);
 
   // confetti
-  const confetti = useRef<Array<{ x: number; y: number; vx: number; vy: number; size: number; rot: number; vr: number; life: number; color: string }>>([]);
+  const confetti = useRef<
+    Array<{
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      size: number;
+      rot: number;
+      vr: number;
+      life: number;
+      color: string;
+    }>
+  >([]);
 
-  // flag: đang animate chữ HBD để giảm tải render
+  // flags
   const wordAnimActiveRef = useRef(false);
-  const wordBBoxRef = useRef<{minX:number;maxX:number;minY:number;maxY:number} | null>(null);
+  const wordBBoxRef = useRef<{
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  } | null>(null);
   const hbdFontSizeRef = useRef<number | null>(null);
   const heavyPhaseRef = useRef(false);
   const frameRef = useRef(0);
@@ -124,10 +163,13 @@ Lớp bờ du :)) 🎂🎉😘😘
   const mDropsRef = useRef<number[]>([]);
   const mPosRef = useRef<number[]>([]);
 
-  // ====== LOGIC GỐC: Candle & Audio ======
+  // ====== Candle & Audio ======
   const lightCandle = useCallback(() => setCandleVisible(true), []);
   const turnOffTheCandle = useCallback(() => setCandleVisible(false), []);
-  const toggleLightCandle = useCallback(() => setCandleVisible((prev) => !prev), []);
+  const toggleLightCandle = useCallback(
+    () => setCandleVisible((prev) => !prev),
+    []
+  );
 
   const startAudio = useCallback(() => {
     setPlaying(true);
@@ -173,7 +215,8 @@ Lớp bờ du :)) 🎂🎉😘😘
 
       const detectBlow = () => {
         analyser.getByteFrequencyData(dataArray);
-        const average = dataArray.reduce((acc, val) => acc + val, 0) / bufferLength;
+        const average =
+          dataArray.reduce((acc, val) => acc + val, 0) / bufferLength;
         const threshold = 43;
         if (average > threshold) {
           setCandleVisible(false);
@@ -181,7 +224,6 @@ Lớp bờ du :)) 🎂🎉😘😘
         }
       };
 
-      // Clear nếu đang tồn tại trước đó
       if (micIntervalRef.current) window.clearInterval(micIntervalRef.current);
       micIntervalRef.current = window.setInterval(detectBlow, 80);
     } catch (error) {
@@ -196,7 +238,7 @@ Lớp bờ du :)) 🎂🎉😘😘
     }
   }, []);
 
-  // Chỉ xin microphone SAU KHI đã vào app (sau intro)
+  // Xin microphone sau intro
   useEffect(() => {
     if (!entered) return;
     (async () => {
@@ -211,7 +253,9 @@ Lớp bờ du :)) 🎂🎉😘😘
     return () => {
       if (micIntervalRef.current) window.clearInterval(micIntervalRef.current);
       if (microphoneStreamRef.current) {
-        microphoneStreamRef.current.getTracks().forEach((track) => track.stop());
+        microphoneStreamRef.current
+          .getTracks()
+          .forEach((track) => track.stop());
       }
     };
   }, [entered, blowCandles]);
@@ -224,108 +268,193 @@ Lớp bờ du :)) 🎂🎉😘😘
     }
   }, []);
 
-  
-
-  
-
   // ====== INTRO (Canvas) – Helpers ======
-  const resizeCanvas = (c: HTMLCanvasElement | null, ctx: CanvasRenderingContext2D | null) => {
+  const resizeCanvas = (
+    c: HTMLCanvasElement | null,
+    ctx: CanvasRenderingContext2D | null
+  ) => {
     if (!c || !ctx) return;
-    const w = window.innerWidth, h = window.innerHeight;
-    SWRef.current = w; SHRef.current = h;
+    const { vw, vh } = getViewportWH();
+    SWRef.current = vw;
+    SHRef.current = vh;
     const DPR = dprRef.current;
-    c.width = Math.floor(w * DPR);
-    c.height = Math.floor(h * DPR);
+    c.width = Math.floor(vw * DPR);
+    c.height = Math.floor(vh * DPR);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   };
 
   const initStars = () => {
-    const SW = SWRef.current, SH = SHRef.current;
+    const SW = SWRef.current,
+      SH = SHRef.current;
     stars.current.length = 0;
     const count = Math.floor((SW * SH) / 26000);
     for (let i = 0; i < count; i++) {
-      stars.current.push({ x: Math.random() * SW, y: Math.random() * SH, r: Math.random() * 1.6 + 0.4, tw: Math.random() * Math.PI * 2, sp: Math.random() * 0.25 + 0.05 });
+      stars.current.push({
+        x: Math.random() * SW,
+        y: Math.random() * SH,
+        r: Math.random() * 1.6 + 0.4,
+        tw: Math.random() * Math.PI * 2,
+        sp: Math.random() * 0.25 + 0.05,
+      });
     }
   };
 
-  const drawHeart = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string, rot: number) => {
-    ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
-    ctx.fillStyle = color; ctx.beginPath();
+  const drawHeart = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    color: string,
+    rot: number
+  ) => {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.fillStyle = color;
+    ctx.beginPath();
     const s = size / 2;
     ctx.moveTo(0, s);
     ctx.bezierCurveTo(s, s, s, -s * 0.2, 0, -s * 0.6);
     ctx.bezierCurveTo(-s, -s * 0.2, -s, s, 0, s);
-    ctx.closePath(); ctx.fill(); ctx.restore();
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   };
 
   const drawStars = (ctx: CanvasRenderingContext2D, t: number) => {
-    const SW = SWRef.current, SH = SHRef.current;
+    const SW = SWRef.current,
+      SH = SHRef.current;
     ctx.clearRect(0, 0, SW, SH);
-    const g = ctx.createRadialGradient(SW / 2, SH / 2, Math.min(SW, SH) / 4, SW / 2, SH / 2, Math.max(SW, SH));
-    g.addColorStop(0, "rgba(0,0,0,.0)"); g.addColorStop(1, "rgba(0,0,0,.25)");
-    ctx.fillStyle = g; ctx.fillRect(0, 0, SW, SH);
+    const g = ctx.createRadialGradient(
+      SW / 2,
+      SH / 2,
+      Math.min(SW, SH) / 4,
+      SW / 2,
+      SH / 2,
+      Math.max(SW, SH)
+    );
+    g.addColorStop(0, "rgba(0,0,0,.0)");
+    g.addColorStop(1, "rgba(0,0,0,.25)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, SW, SH);
 
     for (const s of stars.current) {
       const tw = (Math.sin(s.tw + t * 0.002) + 1) / 2;
       ctx.globalAlpha = 0.55 + tw * 0.45;
       ctx.fillStyle = "#fff";
-      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
       s.tw += s.sp * 0.05;
     }
     ctx.globalAlpha = 1;
 
     if (hearts.current.length < 8 && Math.random() < 0.03) {
       const size = Math.random() * 10 + 8;
-      hearts.current.push({ x: Math.random() * SW, y: SH + 20, size, vy: 0.6 + Math.random() * 0.8, vx: (Math.random() - .5) * 0.4, a: 1, rot: Math.random() * Math.PI });
+      hearts.current.push({
+        x: Math.random() * SW,
+        y: SH + 20,
+        size,
+        vy: 0.6 + Math.random() * 0.8,
+        vx: (Math.random() - 0.5) * 0.4,
+        a: 1,
+        rot: Math.random() * Math.PI,
+      });
     }
     for (let i = hearts.current.length - 1; i >= 0; i--) {
       const h = hearts.current[i];
-      h.y -= h.vy; h.x += h.vx; h.a -= 0.007; h.rot += 0.02;
-      if (h.a <= 0 || h.y < -30) { hearts.current.splice(i, 1); continue; }
-      drawHeart(ctx, h.x, h.y, h.size, `rgba(255,79,163,${Math.max(0, h.a)})`, h.rot);
+      h.y -= h.vy;
+      h.x += h.vx;
+      h.a -= 0.007;
+      h.rot += 0.02;
+      if (h.a <= 0 || h.y < -30) {
+        hearts.current.splice(i, 1);
+        continue;
+      }
+      drawHeart(
+        ctx,
+        h.x,
+        h.y,
+        h.size,
+        `rgba(255,79,163,${Math.max(0, h.a)})`,
+        h.rot
+      );
     }
   };
 
   const emitConfetti = (n = INTRO_CONFETTI) => {
-    const SW = SWRef.current, SH = SHRef.current;
-    const colors = ["#ffffff", "#ffd1e7", "#ff4fa3", "#8a1d59", "#f9a8d4", "#fecdd3"];
+    const SW = SWRef.current,
+      SH = SHRef.current;
+    const colors = [
+      "#ffffff",
+      "#ffd1e7",
+      "#ff4fa3",
+      "#8a1d59",
+      "#f9a8d4",
+      "#fecdd3",
+    ];
     for (let i = 0; i < n; i++) {
       const ang = Math.random() * Math.PI * 2;
       const speed = 2 + Math.random() * 4;
-      confetti.current.push({ x: SW / 2, y: SH / 3, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed - 2, size: 2 + Math.random() * 3, rot: Math.random() * Math.PI, vr: (Math.random() - .5) * 0.3, life: 120 + Math.random() * 120, color: colors[(Math.random() * colors.length) | 0] });
+      confetti.current.push({
+        x: SW / 2,
+        y: SH / 3,
+        vx: Math.cos(ang) * speed,
+        vy: Math.sin(ang) * speed - 2,
+        size: 2 + Math.random() * 3,
+        rot: Math.random() * Math.PI,
+        vr: (Math.random() - 0.5) * 0.3,
+        life: 120 + Math.random() * 120,
+        color: colors[(Math.random() * colors.length) | 0],
+      });
     }
   };
 
   const drawConfetti = (ctx: CanvasRenderingContext2D) => {
-    const SW = SWRef.current, SH = SHRef.current;
+    const SW = SWRef.current,
+      SH = SHRef.current;
     ctx.clearRect(0, 0, SW, SH);
     for (let i = confetti.current.length - 1; i >= 0; i--) {
       const p = confetti.current[i];
       p.vy += 0.02;
-      p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life -= 1;
-      if (p.life <= 0 || p.y > SH + 20) { confetti.current.splice(i, 1); continue; }
-      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
-      ctx.fillStyle = p.color; ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 1.6);
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+      p.life -= 1;
+      if (p.life <= 0 || p.y > SH + 20) {
+        confetti.current.splice(i, 1);
+        continue;
+      }
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 1.6);
       ctx.restore();
     }
   };
 
   const resizeMatrix = (ctx: CanvasRenderingContext2D | null) => {
     if (!matrixRef.current || !ctx) return;
-    const SW = SWRef.current, SH = SHRef.current, DPR = dprRef.current;
+    const SW = SWRef.current,
+      SH = SHRef.current,
+      DPR = dprRef.current;
     matrixRef.current.width = Math.floor(SW * DPR);
     matrixRef.current.height = Math.floor(SH * DPR);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     mFontSizeRef.current = Math.max(18, Math.floor(SW / 60));
     mColsRef.current = Math.floor(SW / mFontSizeRef.current);
     mDropsRef.current = new Array(mColsRef.current).fill(0).map(() => 0);
-    mPosRef.current = new Array(mColsRef.current).fill(0).map(() => (Math.random() * letters.length) | 0);
+    mPosRef.current = new Array(mColsRef.current)
+      .fill(0)
+      .map(() => (Math.random() * letters.length) | 0);
     ctx.font = `${mFontSizeRef.current}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace`;
     ctx.textBaseline = "top";
   };
 
   const drawMatrix = (ctx: CanvasRenderingContext2D) => {
-    const SW = SWRef.current, SH = SHRef.current;
+    const SW = SWRef.current,
+      SH = SHRef.current;
     const fontSize = mFontSizeRef.current;
     const cols = mColsRef.current;
     const drops = mDropsRef.current;
@@ -341,295 +470,466 @@ Lớp bờ du :)) 🎂🎉😘😘
     const lineSpacing = INTRO_LINE_SPACING;
     for (let i = 0; i < cols; i++) {
       const text = letters[positions[i]];
-      const x = i * fontSize; const y = drops[i] * fontSize * lineSpacing;
+      const x = i * fontSize;
+      const y = drops[i] * fontSize * lineSpacing;
       ctx.fillText(text, x, y);
       if (y > SH && Math.random() > 0.975) {
-        drops[i] = 0; positions[i] = 0;
+        drops[i] = 0;
+        positions[i] = 0;
       } else if (y <= SH) {
         positions[i] = (positions[i] + 1) % letters.length;
       }
       drops[i] += INTRO_RAIN_SPEED;
     }
-    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = "transparent";
   };
 
   const drawDigitDots = (ctx: CanvasRenderingContext2D, ch: string) => {
-    const SW = SWRef.current, SH = SHRef.current;
+    const SW = SWRef.current,
+      SH = SHRef.current;
     ctx.clearRect(0, 0, SW, SH);
     const off = document.createElement("canvas");
     const octx = off.getContext("2d")!;
-    off.width = SW; off.height = SH;
+    off.width = SW;
+    off.height = SH;
     let fz = Math.min(SW, SH) * 0.35;
     octx.fillStyle = "#fff";
     octx.font = `900 ${fz}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace`;
-    octx.textAlign = "center"; octx.textBaseline = "middle";
+    octx.textAlign = "center";
+    octx.textBaseline = "middle";
     octx.fillText(ch, SW / 2, SH / 2);
 
     const step = Math.max(4, Math.floor(Math.min(SW, SH) / 120));
     const { data } = octx.getImageData(0, 0, SW, SH);
     const dots: { x: number; y: number }[] = [];
-    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
     for (let y = 0; y < SH; y += step) {
       for (let x = 0; x < SW; x += step) {
         const a = data[(y * SW + x) * 4 + 3];
         if (a > 10) {
           dots.push({ x, y });
-          if(x<minX)minX=x; if(y<minY)minY=y; if(x>maxX)maxX=x; if(y>maxY)maxY=y;
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
         }
       }
     }
     if (dots.length) {
-      const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-      const marginX = SW * INTRO_MARGIN, marginY = SH * INTRO_MARGIN;
-      let dx = SW/2 - cx + SW*INTRO_WORD_SHIFT;
-      let dy = SH/2 - cy;
-      dx = clamp(dx, marginX - minX, (SW - marginX) - maxX);
-      dy = clamp(dy, marginY - minY, (SH - marginY) - maxY);
-      for (const d of dots) { d.x += dx; d.y += dy; }
+      const cx = (minX + maxX) / 2,
+        cy = (minY + maxY) / 2;
+      const marginX = SW * INTRO_MARGIN,
+        marginY = SH * INTRO_MARGIN;
+      let dx = SW / 2 - cx + SW * INTRO_WORD_SHIFT;
+      let dy = SH / 2 - cy;
+      dx = clamp(dx, marginX - minX, SW - marginX - maxX);
+      dy = clamp(dy, marginY - minY, SH - marginY - maxY);
+      for (const d of dots) {
+        d.x += dx;
+        d.y += dy;
+      }
     }
 
     ctx.fillStyle = gradRef.current || gradColor(ctx, SW, SH);
-    ctx.shadowColor = "transparent"; (ctx as any).shadowBlur = 0;
+    ctx.shadowColor = "transparent";
+    (ctx as any).shadowBlur = 0;
     ctx.beginPath();
     const r = step / 2.2;
-    for (const d of dots) { ctx.moveTo(d.x + r, d.y); ctx.arc(d.x, d.y, r, 0, Math.PI * 2); }
+    for (const d of dots) {
+      ctx.moveTo(d.x + r, d.y);
+      ctx.arc(d.x, d.y, r, 0, Math.PI * 2);
+    }
     ctx.fill();
     return { dots, step };
   };
 
-  const disperseDots = (ctx: CanvasRenderingContext2D, dots: { x: number; y: number }[], step: number, duration = 700) => new Promise<void>((resolve) => {
-    const SW = SWRef.current, SH = SHRef.current;
-    const parts = dots.map(d => ({ x: d.x, y: d.y, vx: (Math.random() - .5) * 4, vy: (Math.random() - .5) * 4, r: step / 2.2 }));
-    const start = performance.now();
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - start) / duration);
-      ctx.clearRect(0, 0, SW, SH);
-      ctx.globalAlpha = 1 - p;
-      ctx.fillStyle = gradRef.current || gradColor(ctx, SW, SH);
-      ctx.shadowColor = "#ff4fa3"; ctx.shadowBlur = 8 * (1 - p);
-      for (const pt of parts) {
-        pt.x += pt.vx; pt.y += pt.vy;
-        ctx.beginPath(); ctx.arc(pt.x, pt.y, Math.max(0.1, pt.r * (1 - p)), 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
-      if (p < 1) { rafRef.current = requestAnimationFrame(tick); } else { resolve(); }
-    };
-    rafRef.current = requestAnimationFrame(tick);
-  });
+  const disperseDots = (
+    ctx: CanvasRenderingContext2D,
+    dots: { x: number; y: number }[],
+    step: number,
+    duration = 700
+  ) =>
+    new Promise<void>((resolve) => {
+      const SW = SWRef.current,
+        SH = SHRef.current;
+      const parts = dots.map((d) => ({
+        x: d.x,
+        y: d.y,
+        vx: (Math.random() - 0.5) * 4,
+        vy: (Math.random() - 0.5) * 4,
+        r: step / 2.2,
+      }));
+      const start = performance.now();
+      const tick = (t: number) => {
+        const p = Math.min(1, (t - start) / duration);
+        ctx.clearRect(0, 0, SW, SH);
+        ctx.globalAlpha = 1 - p;
+        ctx.fillStyle = gradRef.current || gradColor(ctx, SW, SH);
+        ctx.shadowColor = "#ff4fa3";
+        ctx.shadowBlur = 8 * (1 - p);
+        for (const pt of parts) {
+          pt.x += pt.vx;
+          pt.y += pt.vy;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, Math.max(0.1, pt.r * (1 - p)), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = "transparent";
+        if (p < 1) {
+          rafRef.current = requestAnimationFrame(tick);
+        } else {
+          resolve();
+        }
+      };
+      rafRef.current = requestAnimationFrame(tick);
+    });
+
   const getWordDots = (text: string) => {
-    const SW = SWRef.current, SH = SHRef.current;
+    const SW = SWRef.current,
+      SH = SHRef.current;
     const off = document.createElement("canvas");
     const octx = off.getContext("2d")!;
-    off.width = SW; off.height = SH; // dùng kích thước CSS để lấy mẫu, tránh lỗi cắt khi DPR>1
-    // TO HƠN
+    off.width = SW;
+    off.height = SH;
+    // TO HƠN nhưng không tràn trên máy nhỏ
     let fz = Math.min(SW, SH) * 0.24;
+    fz = Math.min(fz, SW * 0.18);
     octx.font = `900 ${fz}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace`;
-    octx.textAlign = "center"; octx.textBaseline = "middle";
-    let metrics = octx.measureText(text), tries = 0;
-    while (metrics.width > SW * 0.9 && tries < 14) { fz *= 0.92; octx.font = `900 ${fz}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace`; metrics = octx.measureText(text); tries++; }
-    octx.fillStyle = "#fff"; octx.fillText(text, SW / 2, SH / 2);
-    // NHIỀU CHẤM HƠN & CHẤM NHỎ HƠN
+    octx.textAlign = "center";
+    octx.textBaseline = "middle";
+    let metrics = octx.measureText(text),
+      tries = 0;
+    while (metrics.width > SW * 0.9 && tries < 14) {
+      fz *= 0.92;
+      octx.font = `900 ${fz}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace`;
+      metrics = octx.measureText(text);
+      tries++;
+    }
+    octx.fillStyle = "#fff";
+    octx.fillText(text, SW / 2, SH / 2);
+
     const step = Math.max(4, Math.floor(Math.min(SW, SH) / 140));
     const { data } = octx.getImageData(0, 0, SW, SH);
     const dots: { x: number; y: number }[] = [];
-    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
     for (let y = 0; y < SH; y += step) {
       for (let x = 0; x < SW; x += step) {
         const a = data[(y * SW + x) * 4 + 3];
         if (a > 10) {
           dots.push({ x, y });
-          if(x<minX)minX=x; if(y<minY)minY=y; if(x>maxX)maxX=x; if(y>maxY)maxY=y;
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
         }
       }
     }
     if (dots.length) {
-      const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-      const marginX = SW * INTRO_MARGIN, marginY = SH * INTRO_MARGIN;
-      let dx = SW/2 - cx + SW*INTRO_WORD_SHIFT; // lệch trái nhẹ theo yêu cầu
-      let dy = SH/2 - cy;
-      dx = clamp(dx, marginX - minX, (SW - marginX) - maxX);
-      dy = clamp(dy, marginY - minY, (SH - marginY) - maxY);
-      for (const d of dots) { d.x += dx; d.y += dy; }
-      wordBBoxRef.current = { minX: minX+dx, maxX: maxX+dx, minY: minY+dy, maxY: maxY+dy };
+      const cx = (minX + maxX) / 2,
+        cy = (minY + maxY) / 2;
+      const marginX = SW * INTRO_MARGIN,
+        marginY = SH * INTRO_MARGIN;
+      let dx = SW / 2 - cx + SW * INTRO_WORD_SHIFT;
+      let dy = SH / 2 - cy;
+      dx = clamp(dx, marginX - minX, SW - marginX - maxX);
+      dy = clamp(dy, marginY - minY, SH - marginY - maxY);
+      for (const d of dots) {
+        d.x += dx;
+        d.y += dy;
+      }
+      wordBBoxRef.current = {
+        minX: minX + dx,
+        maxX: maxX + dx,
+        minY: minY + dy,
+        maxY: maxY + dy,
+      };
     }
-    // giảm số lượng chấm để bớt lag
-    let sampled = dots;
-    let baseR = step/3.0; // chấm nhỏ hơn
-    // lưu font size để các dòng sau dùng cùng kích thước
-    hbdFontSizeRef.current = fz;
-    return { dots: sampled, step, radius: baseR, fontSize: fz };
+    const sampled = dots;
+    const baseR = step / 3.0; // chấm nhỏ hơn
+    hbdFontSizeRef.current = fz; // lưu size cho các dòng sau
+    return { dots: sampled, step, radius: baseR };
   };
 
-  const animateWordSequence = (ctx: CanvasRenderingContext2D, text = INTRO_MESSAGE) => new Promise<void>((resolve) => {
-    // Hiện chữ HBD bằng chấm, giữ 2s rồi TAN BIẾN
-    wordAnimActiveRef.current = true; // tắt layer matrix trong lúc hiển thị chữ
-    const SW = SWRef.current, SH = SHRef.current;
-    const { dots, radius } = getWordDots(text);
-    const parts = dots.map(d => ({ tx: d.x, ty: d.y, x: SW / 2 + (Math.random() - 0.5) * 60, y: SH / 2 + (Math.random() - 0.5) * 40, r: 0, tr: radius, a: 1 }));
-    const inDur = 900; // vào
-    const holdMs = 2000; // giữ 2s
-    const outDur = 700; // thoát
+  const animateWordSequence = (
+    ctx: CanvasRenderingContext2D,
+    text = INTRO_MESSAGE
+  ) =>
+    new Promise<void>((resolve) => {
+      // HBD bằng chấm, giữ 2s rồi tan biến
+      wordAnimActiveRef.current = true;
+      const SW = SWRef.current,
+        SH = SHRef.current;
+      const { dots, radius } = getWordDots(text);
+      const parts = dots.map((d) => ({
+        tx: d.x,
+        ty: d.y,
+        x: SW / 2 + (Math.random() - 0.5) * 60,
+        y: SH / 2 + (Math.random() - 0.5) * 40,
+        r: 0,
+        tr: radius,
+        a: 1,
+      }));
+      const inDur = 900;
+      const holdMs = 2000;
+      const outDur = 700;
 
-    const bbox = wordBBoxRef.current;
-    const pad = 28;
-    const clearBand = () => {
-      if (!bbox) return;
-      ctx.clearRect(
-        Math.max(0, bbox.minX - pad),
-        Math.max(0, bbox.minY - pad),
-        Math.min(SW, (bbox.maxX - bbox.minX) + pad * 2),
-        Math.min(SH, (bbox.maxY - bbox.minY) + pad * 2)
+      const bbox = wordBBoxRef.current;
+      const pad = 28;
+      const clearBand = () => {
+        if (!bbox) return;
+        ctx.clearRect(
+          Math.max(0, bbox.minX - pad),
+          Math.max(0, bbox.minY - pad),
+          Math.min(SW, bbox.maxX - bbox.minX + pad * 2),
+          Math.min(SH, bbox.maxY - bbox.minY + pad * 2)
+        );
+      };
+
+      const render = () => {
+        clearBand();
+        ctx.fillStyle = gradRef.current || gradColor(ctx, SW, SH);
+        ctx.shadowColor = "transparent";
+        (ctx as any).shadowBlur = 0;
+        const alpha = parts.length ? Math.max(0, parts[0].a) : 1;
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        for (const p of parts) {
+          const r = Math.max(0.1, p.r);
+          ctx.moveTo(p.x + r, p.y);
+          ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        }
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      };
+
+      const startIn = performance.now();
+      const stepIn = (t: number) => {
+        const p = Math.min(1, (t - startIn) / inDur);
+        const e = easeOutCubic(p);
+        for (const pt of parts) {
+          pt.x += (pt.tx - pt.x) * e;
+          pt.y += (pt.ty - pt.y) * e;
+          pt.r = pt.tr * e;
+          pt.a = 1;
+        }
+        render();
+        if (p < 1) {
+          rafRef.current = requestAnimationFrame(stepIn);
+        } else {
+          setTimeout(() => {
+            const startOut = performance.now();
+            const stepOut = (tt: number) => {
+              const q = Math.min(1, (tt - startOut) / outDur);
+              for (const pt of parts) {
+                pt.x += (Math.random() - 0.5) * 2.6;
+                pt.y += (Math.random() - 0.5) * 2.6;
+                pt.r = pt.tr * (1 - q);
+                pt.a = 1 - q;
+              }
+              render();
+              if (q < 1) {
+                rafRef.current = requestAnimationFrame(stepOut);
+              } else {
+                clearBand();
+                resolve();
+              }
+            };
+            rafRef.current = requestAnimationFrame(stepOut);
+          }, holdMs);
+        }
+      };
+
+      rafRef.current = requestAnimationFrame(stepIn);
+    });
+
+  // ====== 3 dòng sau HBD (dots, giữ 2s, biến mất) ======
+  const getWordDotsAt = (text: string, centerY: number) => {
+    const SW = SWRef.current,
+      SH = SHRef.current;
+    const off = document.createElement("canvas");
+    const octx = off.getContext("2d")!;
+    off.width = SW;
+    off.height = SH;
+
+    // Cùng kích thước font với HBD, có clamp theo màn nhỏ
+    let fz = hbdFontSizeRef.current ?? Math.min(SW, SH) * 0.24;
+    fz = Math.min(fz, SW * 0.18);
+    octx.font = `900 ${fz}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace`;
+    octx.textAlign = "center";
+    octx.textBaseline = "middle";
+    let metrics = octx.measureText(text),
+      tries = 0;
+    while (metrics.width > SW * 0.9 && tries < 14) {
+      fz *= 0.92;
+      octx.font = `900 ${fz}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace`;
+      metrics = octx.measureText(text);
+      tries++;
+    }
+    octx.fillStyle = "#fff";
+    octx.fillText(text, SW / 2, centerY);
+
+    const step = Math.max(4, Math.floor(Math.min(SW, SH) / 140));
+    const { data } = octx.getImageData(0, 0, SW, SH);
+    const dots: { x: number; y: number }[] = [];
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (let y = 0; y < SH; y += step) {
+      for (let x = 0; x < SW; x += step) {
+        const a = data[(y * SW + x) * 4 + 3];
+        if (a > 10) {
+          dots.push({ x, y });
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    let bbox = { minX, minY, maxX, maxY };
+    const marginX = SW * INTRO_MARGIN,
+      marginY = SH * INTRO_MARGIN;
+    const cx = (minX + maxX) / 2,
+      cy = (minY + maxY) / 2;
+    let dx = SW / 2 - cx; // chính giữa ngang
+    let dy = centerY - cy; // chính giữa theo Y
+    dx = clamp(dx, marginX - minX, SW - marginX - maxX);
+    dy = clamp(dy, marginY - minY, SH - marginY - maxY);
+    for (const d of dots) {
+      d.x += dx;
+      d.y += dy;
+    }
+    bbox = {
+      minX: minX + dx,
+      minY: minY + dy,
+      maxX: maxX + dx,
+      maxY: maxY + dy,
+    };
+
+    const sampled = dots;
+    const baseR = step / 3.0;
+    return { dots: sampled, radius: baseR, step, bbox };
+  };
+
+  const animateLineAppearHoldDisappear = (
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    centerY: number,
+    holdMs = 2000
+  ) =>
+    new Promise<number>((resolve) => {
+      const SW = SWRef.current,
+        SH = SHRef.current;
+      const { dots, radius, bbox } = getWordDotsAt(text, centerY);
+      const parts = dots.map((d) => ({
+        tx: d.x,
+        ty: d.y,
+        x: SW / 2 + (Math.random() - 0.5) * 60,
+        y: centerY + (Math.random() - 0.5) * 40,
+        r: 0,
+        tr: radius,
+        a: 1,
+      }));
+      const inDur = 700,
+        outDur = 600;
+      const pad = 24;
+      const clearBand = () =>
+        ctx.clearRect(
+          Math.max(0, bbox.minX - pad),
+          Math.max(0, bbox.minY - pad),
+          Math.min(SW, bbox.maxX - bbox.minX + pad * 2),
+          Math.min(SH, bbox.maxY - bbox.minY + pad * 2)
+        );
+
+      const render = () => {
+        clearBand();
+        ctx.fillStyle = gradRef.current || gradColor(ctx, SW, SH);
+        ctx.shadowColor = "transparent";
+        (ctx as any).shadowBlur = 0;
+        const alpha = parts.length ? Math.max(0, parts[0].a) : 1;
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        for (const p of parts) {
+          const r = Math.max(0.1, p.r);
+          ctx.moveTo(p.x + r, p.y);
+          ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        }
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      };
+
+      // Bay vào
+      const startIn = performance.now();
+      const stepIn = (t: number) => {
+        const p = Math.min(1, (t - startIn) / inDur);
+        const e = easeOutCubic(p);
+        for (const pt of parts) {
+          pt.x += (pt.tx - pt.x) * e;
+          pt.y += (pt.ty - pt.y) * e;
+          pt.r = pt.tr * e;
+          pt.a = 1;
+        }
+        render();
+        if (p < 1) {
+          rafRef.current = requestAnimationFrame(stepIn);
+        } else {
+          // Giữ rồi biến mất
+          setTimeout(() => {
+            const startOut = performance.now();
+            const stepOut = (tt: number) => {
+              const q = Math.min(1, (tt - startOut) / outDur);
+              for (const pt of parts) {
+                pt.x += (Math.random() - 0.5) * 2.6;
+                pt.y += (Math.random() - 0.5) * 2.6;
+                pt.r = pt.tr * (1 - q);
+                pt.a = 1 - q;
+              }
+              render();
+              if (q < 1) {
+                rafRef.current = requestAnimationFrame(stepOut);
+              } else {
+                clearBand();
+                resolve(bbox.maxY);
+              }
+            };
+            rafRef.current = requestAnimationFrame(stepOut);
+          }, holdMs);
+        }
+      };
+      rafRef.current = requestAnimationFrame(stepIn);
+    });
+
+  const animateLinesDotsSequence = async (
+    ctx: CanvasRenderingContext2D,
+    lines: readonly string[]
+  ) => {
+    const centerY = SHRef.current / 2; // chính giữa màn hình
+    let lastBottom = centerY;
+    for (const line of lines) {
+      lastBottom = await animateLineAppearHoldDisappear(
+        ctx,
+        line,
+        centerY,
+        2000
       );
-    };
-
-    const render = () => {
-      clearBand();
-      ctx.fillStyle = gradRef.current || gradColor(ctx, SW, SH);
-      ctx.shadowColor = "transparent";
-      (ctx as any).shadowBlur = 0;
-      const alpha = parts.length ? Math.max(0, parts[0].a) : 1;
-      ctx.globalAlpha = alpha;
-      ctx.beginPath();
-      for (const p of parts) {
-        const r = Math.max(0.1, p.r);
-        ctx.moveTo(p.x + r, p.y);
-        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-      }
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    };
-
-    const startIn = performance.now();
-    const stepIn = (t: number) => {
-      const p = Math.min(1, (t - startIn) / inDur); const e = easeOutCubic(p);
-      for (const pt of parts) { pt.x += (pt.tx - pt.x) * e; pt.y += (pt.ty - pt.y) * e; pt.r = pt.tr * e; pt.a = 1; }
-      render();
-      if (p < 1) { rafRef.current = requestAnimationFrame(stepIn); }
-      else {
-        setTimeout(() => {
-          const startOut = performance.now();
-          const stepOut = (tt: number) => {
-            const q = Math.min(1, (tt - startOut) / outDur);
-            for (const pt of parts) { pt.x += (Math.random() - .5) * 2.6; pt.y += (Math.random() - .5) * 2.6; pt.r = pt.tr * (1 - q); pt.a = 1 - q; }
-            render();
-            if (q < 1) { rafRef.current = requestAnimationFrame(stepOut); }
-            else { clearBand(); resolve(); }
-          };
-          rafRef.current = requestAnimationFrame(stepOut);
-        }, holdMs);
-      }
-    };
-
-    rafRef.current = requestAnimationFrame(stepIn);
-  });
-
-  // ====== GÕ 3 DÒNG SAU "HAPPY BIRTHDAY" (DẠNG CHẤM BAY VÀO, GIỮ 2S RỒI BIẾN MẤT) ======
-const getWordDotsAt = (text: string, centerY: number) => {
-  const SW = SWRef.current, SH = SHRef.current;
-  const off = document.createElement("canvas");
-  const octx = off.getContext("2d")!;
-  off.width = SW; off.height = SH;
-
-  // Dùng cùng kích thước font với HBD
-  let fz = (hbdFontSizeRef.current ?? Math.min(SW, SH) * 0.24);
-  octx.font = `900 ${fz}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace`;
-  octx.textAlign = "center"; octx.textBaseline = "middle";
-  let metrics = octx.measureText(text), tries = 0;
-  while (metrics.width > SW * 0.9 && tries < 14) { fz *= 0.92; octx.font = `900 ${fz}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace`; metrics = octx.measureText(text); tries++; }
-  octx.fillStyle = "#fff"; octx.fillText(text, SW / 2, centerY);
-
-  const step = Math.max(4, Math.floor(Math.min(SW, SH) / 140));
-  const { data } = octx.getImageData(0, 0, SW, SH);
-  const dots: { x: number; y: number }[] = [];
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (let y = 0; y < SH; y += step) {
-    for (let x = 0; x < SW; x += step) {
-      const a = data[(y * SW + x) * 4 + 3];
-      if (a > 10) {
-        dots.push({ x, y });
-        if (x < minX) minX = x; if (y < minY) minY = y; if (x > maxX) maxX = x; if (y > maxY) maxY = y;
-      }
     }
-  }
-
-  let bbox = { minX, minY, maxX, maxY };
-  const marginX = SW * INTRO_MARGIN, marginY = SH * INTRO_MARGIN;
-  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-  let dx = SW / 2 - cx; // để chính giữa ngang
-  let dy = centerY - cy; // canh giữa theo Y được truyền vào
-  dx = clamp(dx, marginX - minX, (SW - marginX) - maxX);
-  dy = clamp(dy, marginY - minY, (SH - marginY) - maxY);
-  for (const d of dots) { d.x += dx; d.y += dy; }
-  bbox = { minX: minX + dx, minY: minY + dy, maxX: maxX + dx, maxY: maxY + dy };
-
-  // Giảm bớt số chấm nếu cần
-  const sampled = dots;
-  const baseR = step / 3.0;
-  return { dots: sampled, radius: baseR, step, bbox, fontSize: fz };
-};
-
-const animateLineAppearHoldDisappear = (ctx: CanvasRenderingContext2D, text: string, centerY: number, holdMs = 2000) => new Promise<number>((resolve) => {
-  const SW = SWRef.current, SH = SHRef.current;
-  const { dots, radius, bbox } = getWordDotsAt(text, centerY);
-  const parts = dots.map(d => ({ tx: d.x, ty: d.y, x: SW / 2 + (Math.random() - 0.5) * 60, y: centerY + (Math.random() - 0.5) * 40, r: 0, tr: radius, a: 1 }));
-  const inDur = 700, outDur = 600; // vào & thoát
-  const pad = 24;
-  const clearBand = () => ctx.clearRect(Math.max(0, bbox.minX - pad), Math.max(0, bbox.minY - pad), Math.min(SW, (bbox.maxX - bbox.minX) + pad * 2), Math.min(SH, (bbox.maxY - bbox.minY) + pad * 2));
-
-  const render = () => {
-      clearBand();
-      ctx.fillStyle = gradRef.current || gradColor(ctx, SW, SH);
-      ctx.shadowColor = "transparent";
-      (ctx as any).shadowBlur = 0;
-      const alpha = parts.length ? Math.max(0, parts[0].a) : 1;
-      ctx.globalAlpha = alpha;
-      ctx.beginPath();
-      for (const p of parts) {
-        const r = Math.max(0.1, p.r);
-        ctx.moveTo(p.x + r, p.y);
-        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-      }
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    };
-
-  // Bay vào
-  const startIn = performance.now();
-  const stepIn = (t: number) => {
-    const p = Math.min(1, (t - startIn) / inDur); const e = easeOutCubic(p);
-    for (const pt of parts) { pt.x += (pt.tx - pt.x) * e; pt.y += (pt.ty - pt.y) * e; pt.r = pt.tr * e; pt.a = 1; }
-    render();
-    if (p < 1) { rafRef.current = requestAnimationFrame(stepIn); }
-    else {
-      // Giữ 2s rồi biến mất
-      setTimeout(() => {
-        const startOut = performance.now();
-        const stepOut = (tt: number) => {
-          const q = Math.min(1, (tt - startOut) / outDur);
-          for (const pt of parts) { pt.x += (Math.random() - .5) * 2.6; pt.y += (Math.random() - .5) * 2.6; pt.r = pt.tr * (1 - q); pt.a = 1 - q; }
-          render();
-          if (q < 1) { rafRef.current = requestAnimationFrame(stepOut); }
-          else { clearBand(); resolve(bbox.maxY); }
-        };
-        rafRef.current = requestAnimationFrame(stepOut);
-      }, holdMs);
-    }
+    return lastBottom;
   };
-  rafRef.current = requestAnimationFrame(stepIn);
-});
 
-const animateLinesDotsSequence = async (ctx: CanvasRenderingContext2D, lines: readonly string[]) => {
-  const centerY = SHRef.current / 2; // chính giữa màn hình
-  let lastBottom = centerY;
-  for (const line of lines) {
-    lastBottom = await animateLineAppearHoldDisappear(ctx, line, centerY, 2000);
-  }
-  return lastBottom;
-};
-
-// ====== INTRO SEQUENCE ======
+  // ====== INTRO SEQUENCE ======
   useEffect(() => {
-    if (entered) return; // không chạy nếu đã vào app chính
+    if (entered) return;
 
     const starsCtx = starsRef.current?.getContext("2d") ?? null;
     const fxCtx = fxRef.current?.getContext("2d") ?? null;
@@ -639,35 +939,39 @@ const animateLinesDotsSequence = async (ctx: CanvasRenderingContext2D, lines: re
     const resizeAll = () => {
       const ctnCtx = cCtx;
       const mtxCtx = mCtx;
-      const stx = starsCtx; const ftx = fxCtx;
-      // canvas sizes
+      const stx = starsCtx;
+      const ftx = fxCtx;
       if (starsRef.current && stx) resizeCanvas(starsRef.current, stx);
       if (fxRef.current && ftx) resizeCanvas(fxRef.current, ftx);
       if (ctnRef.current && ctnCtx) resizeCanvas(ctnRef.current, ctnCtx);
       if (mtxCtx) resizeMatrix(mtxCtx);
-      if (ctnCtx) { gradRef.current = gradColor(ctnCtx, SWRef.current, SHRef.current); }
+      if (ctnCtx) {
+        gradRef.current = gradColor(ctnCtx, SWRef.current, SHRef.current);
+      }
       initStars();
     };
 
     const loop = (ts: number) => {
-      if (entered) return; // stop when entered
+      if (entered) return;
       frameRef.current++;
-      const sparse = heavyPhaseRef.current && (frameRef.current % 2 === 1);
+      const sparse = heavyPhaseRef.current && frameRef.current % 2 === 1;
       if (starsCtx && !sparse) drawStars(starsCtx, ts);
       if (mCtx) {
-      if (!wordAnimActiveRef.current) drawMatrix(mCtx);
-      else mCtx.clearRect(0, 0, SWRef.current, SHRef.current);
-    }
+        if (!wordAnimActiveRef.current) drawMatrix(mCtx);
+        else mCtx.clearRect(0, 0, SWRef.current, SHRef.current);
+      }
       if (fxCtx && !sparse) drawConfetti(fxCtx);
       rafRef.current = requestAnimationFrame(loop);
     };
 
     const onResize = () => resizeAll();
     window.addEventListener("resize", onResize);
+    (window.visualViewport as any)?.addEventListener?.("resize", onResize);
+
     resizeAll();
     rafRef.current = requestAnimationFrame(loop);
 
-    // countdown -> disperse -> word -> confetti -> show button
+    // countdown -> disperse -> HBD -> 3 dòng -> show button
     const startCountdown = async () => {
       if (!cCtx) return;
       await new Promise((r) => setTimeout(r, INTRO_START_DELAY));
@@ -684,9 +988,9 @@ const animateLinesDotsSequence = async (ctx: CanvasRenderingContext2D, lines: re
       emitConfetti(INTRO_CONFETTI);
       heavyPhaseRef.current = true;
       await animateWordSequence(cCtx, INTRO_MESSAGE);
-      // Sau khi hiện HBD xong, hiện thêm 3 dòng hiệu ứng chấm bay vào (mỗi dòng giữ 2s rồi biến mất)
       const bottomY = await animateLinesDotsSequence(cCtx, AFTER_LINES);
       heavyPhaseRef.current = false;
+
       const SH = SHRef.current;
       const top = Math.min(bottomY + 48, SH - 100);
       setIntroButtonTop(top);
@@ -697,21 +1001,38 @@ const animateLinesDotsSequence = async (ctx: CanvasRenderingContext2D, lines: re
 
     return () => {
       window.removeEventListener("resize", onResize);
+      (window.visualViewport as any)?.removeEventListener?.("resize", onResize);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
   }, [entered]);
 
   const handleEnter = () => {
-    setEntered(true); // ẩn intro, hiện app chính
+    setEntered(true);
   };
 
-  // ====== UI: Thư chúc (nếu mở) ======
+  // ====== UI: Thư chúc ======
   if (entered && showLetter) {
     return (
-      <div style={{ padding: "20px", textAlign: "center", backgroundColor: "#7a3a54ff", height: "100vh" }}>
-        <h1>💌 Gửi Mi 💌</h1>
-        <p style={{ fontSize: "18px", maxWidth: "680px", margin: "24px auto", lineHeight: "1.7", whiteSpace: "pre-line", textAlign: "center" }}>
+      <div
+        style={{
+          padding: "clamp(12px, 4vw, 24px)",
+          textAlign: "center",
+          backgroundColor: "#7a3a54ff",
+          height: "100vh",
+        }}
+      >
+        <h1>💌 Gửi Như 💌</h1>
+        <p
+          style={{
+            fontSize: "clamp(16px, 4vw, 18px)",
+            maxWidth: "680px",
+            margin: "24px auto",
+            lineHeight: 1.7,
+            whiteSpace: "pre-line",
+            textAlign: "center",
+          }}
+        >
           {letterText}
         </p>
         <button
@@ -733,31 +1054,83 @@ const animateLinesDotsSequence = async (ctx: CanvasRenderingContext2D, lines: re
     );
   }
 
-  // ====== UI: Intro overlay (canvases + nút vào) ======
+  // ====== UI: Intro overlay ======
   if (!entered) {
     return (
-      <div style={{ position: "fixed", inset: 0, background: "#000", overflow: "hidden" }}>
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "#000",
+          overflow: "hidden",
+        }}
+      >
         {/* Stack canvases */}
-        <canvas ref={starsRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
-        <canvas ref={fxRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
-        <canvas ref={matrixRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
-        <canvas ref={ctnRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
+        <canvas
+          ref={starsRef}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            display: "block",
+          }}
+        />
+        <canvas
+          ref={fxRef}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            display: "block",
+          }}
+        />
+        <canvas
+          ref={matrixRef}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            display: "block",
+          }}
+        />
+        <canvas
+          ref={ctnRef}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            display: "block",
+          }}
+        />
 
-        {/* Nút vào bánh kem, xuất hiện sau khi intro xong */}
+        {/* Nút vào bánh kem */}
         {showEnter && (
-          <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", top: introButtonTop ? `${introButtonTop}px` : "65%" }}>
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              transform: "translateX(-50%)",
+              top: introButtonTop ? `${introButtonTop}px` : "65%",
+            }}
+          >
             <button
               onClick={handleEnter}
               style={{
                 padding: "14px 22px",
                 borderRadius: 14,
                 border: "1px solid rgba(255,255,255,.25)",
-                background: "radial-gradient(120% 120% at 50% 20%, #fff 0%, #ffd1e7 35%, #ff4fa3 70%, #8a1d59 100%)",
+                background:
+                  "radial-gradient(120% 120% at 50% 20%, #fff 0%, #ffd1e7 35%, #ff4fa3 70%, #8a1d59 100%)",
                 color: "#000",
                 fontWeight: 800,
                 letterSpacing: ".03em",
-                boxShadow: "0 8px 24px rgba(255,79,163,.35), 0 2px 6px rgba(0,0,0,.2)",
-                cursor: "pointer"
+                boxShadow:
+                  "0 8px 24px rgba(255,79,163,.35), 0 2px 6px rgba(0,0,0,.2)",
+                cursor: "pointer",
               }}
               aria-label="Nhận bánh kem"
             >
@@ -769,9 +1142,16 @@ const animateLinesDotsSequence = async (ctx: CanvasRenderingContext2D, lines: re
     );
   }
 
-  // ====== UI: Màn hình bánh sinh nhật (app chính giữ nguyên) ======
+  // ====== UI: Màn hình bánh sinh nhật ======
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100dvh", justifyContent: "space-between" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100dvh",
+        justifyContent: "space-between",
+      }}
+    >
       {/* Joyride share mode */}
       <Joyride
         styles={{ options: { zIndex: shareMode ? 10000 : -10000 } }}
@@ -805,9 +1185,6 @@ const animateLinesDotsSequence = async (ctx: CanvasRenderingContext2D, lines: re
       {/* Bánh sinh nhật */}
       <Cake candleVisible={candleVisible} />
 
-      {/* Anchor cho beacon Joyride: đặt dưới bánh */}
-      
-
       {/* Nút mở thư */}
       {showLetterButton && (
         <div
@@ -837,27 +1214,56 @@ const animateLinesDotsSequence = async (ctx: CanvasRenderingContext2D, lines: re
       )}
 
       {/* Hiệu ứng chữ HBD */}
-      <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)" }}>
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: "50%",
+          transform: "translateX(-50%)",
+        }}
+      >
         <dotlottie-player
           src="/assets/hbd.lottie"
           autoplay
           loop
-          style={{ zIndex: 20, visibility: visibility ? "visible" : "hidden", width: 400 }}
+          style={{
+            zIndex: 20,
+            visibility: visibility ? "visible" : "hidden",
+            width: "min(72vw, 360px)",
+          }}
         />
       </div>
 
       {/* Hiệu ứng confetti */}
-      <div style={{ position: "absolute", top: "25%", left: "50%", transform: "translateX(-50%)" }}>
+      <div
+        style={{
+          position: "absolute",
+          top: "25%",
+          left: "50%",
+          transform: "translateX(-50%)",
+        }}
+      >
         <dotlottie-player
           src="/assets/confetti.lottie"
           autoplay
           loop
-          style={{ zIndex: 30, visibility: visibility ? "visible" : "hidden", width: 400 }}
+          style={{
+            zIndex: 30,
+            visibility: visibility ? "visible" : "hidden",
+            width: "min(80vw, 420px)",
+          }}
         />
       </div>
 
-      {/* Nút điều khiển */}
-      <div style={{ position: "absolute", bottom: "1.25%", left: "50%", transform: "translateX(-50%)" }}>
+      {/* Nút điều khiển (cố định & chừa safe-area) */}
+      <div
+        style={{
+          position: "fixed",
+          left: "50%",
+          transform: "translateX(-50%)",
+          bottom: "calc(12px + env(safe-area-inset-bottom, 0px))",
+        }}
+      >
         <CakeActions
           {...{
             run,
