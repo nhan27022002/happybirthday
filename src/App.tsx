@@ -84,7 +84,7 @@ Cầu tài được tài
 Chúc em sống mãi trong ánh sáng của 10 phương chư phật.
  🎂🎉😘😘
 
-Cho anh xin lỗi nhé vì cách làm của anh đã làm em không vui 👉👈
+
 
  `;
 
